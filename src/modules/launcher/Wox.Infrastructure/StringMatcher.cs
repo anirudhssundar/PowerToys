@@ -71,11 +71,38 @@ namespace Wox.Infrastructure
                 return new MatchResult(false, UserSettingSearchPrecision);
             }
 
+            ArgumentNullException.ThrowIfNull(opt);
+
+            query = query?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrEmpty(query))
+            {
+                return new MatchResult(false, UserSettingSearchPrecision);
+            }
+
+            if (_alphabet != null)
+            {
+                query = _alphabet.Translate(query);
+                stringToCompare = _alphabet.Translate(stringToCompare);
+            }
+
+            // Pre-compute case-normalised strings and query substrings once, outside the per-startIndex loop.
+            // Previously these were recomputed inside the loop (once per character in stringToCompare),
+            // causing O(n) redundant string allocations and O(n) redundant Split calls per FuzzyMatch invocation.
+            var fullStringToCompareWithoutCase = opt.IgnoreCase ? stringToCompare.ToUpper(CultureInfo.InvariantCulture) : stringToCompare;
+            var queryWithoutCase = opt.IgnoreCase ? query.ToUpper(CultureInfo.InvariantCulture) : query;
+            var querySubstrings = queryWithoutCase.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+
+            if (querySubstrings.Length == 0)
+            {
+                return new MatchResult(false, UserSettingSearchPrecision);
+            }
+
             var bestResult = new MatchResult(false, UserSettingSearchPrecision);
 
-            for (int startIndex = 0; startIndex < stringToCompare.Length; startIndex++)
+            for (int startIndex = 0; startIndex < fullStringToCompareWithoutCase.Length; startIndex++)
             {
-                MatchResult result = FuzzyMatch(query, stringToCompare, opt, startIndex);
+                MatchResult result = FuzzyMatchCore(query, stringToCompare, opt.IgnoreCase, startIndex, fullStringToCompareWithoutCase, querySubstrings);
                 if (result.Success && (!bestResult.Success || result.Score > bestResult.Score))
                 {
                     bestResult = result;
@@ -85,28 +112,8 @@ namespace Wox.Infrastructure
             return bestResult;
         }
 
-        private MatchResult FuzzyMatch(string query, string stringToCompare, MatchOption opt, int startIndex)
+        private MatchResult FuzzyMatchCore(string query, string stringToCompare, bool ignoreCase, int startIndex, string fullStringToCompareWithoutCase, string[] querySubstrings)
         {
-            if (string.IsNullOrEmpty(stringToCompare) || string.IsNullOrEmpty(query))
-            {
-                return new MatchResult(false, UserSettingSearchPrecision);
-            }
-
-            ArgumentNullException.ThrowIfNull(opt);
-
-            query = query.Trim();
-
-            if (_alphabet != null)
-            {
-                query = _alphabet.Translate(query);
-                stringToCompare = _alphabet.Translate(stringToCompare);
-            }
-
-            // Using InvariantCulture since this is internal
-            var fullStringToCompareWithoutCase = opt.IgnoreCase ? stringToCompare.ToUpper(CultureInfo.InvariantCulture) : stringToCompare;
-            var queryWithoutCase = opt.IgnoreCase ? query.ToUpper(CultureInfo.InvariantCulture) : query;
-
-            var querySubstrings = queryWithoutCase.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
             int currentQuerySubstringIndex = 0;
             var currentQuerySubstring = querySubstrings[currentQuerySubstringIndex];
             var currentQuerySubstringCharacterIndex = 0;
@@ -131,12 +138,12 @@ namespace Wox.Infrastructure
                 }
 
                 bool compareResult;
-                if (opt.IgnoreCase)
+                if (ignoreCase)
                 {
-                    var fullStringToCompare = fullStringToCompareWithoutCase[compareStringIndex].ToString();
-                    var querySubstring = currentQuerySubstring[currentQuerySubstringCharacterIndex].ToString();
+                    // Use the indexed string.Compare overload to avoid allocating single-character strings
+                    // for every character comparison in the hot inner loop.
 #pragma warning disable CA1309 // Use ordinal string comparison (We are looking for a fuzzy match here)
-                    compareResult = string.Compare(fullStringToCompare, querySubstring, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) != 0;
+                    compareResult = string.Compare(fullStringToCompareWithoutCase, compareStringIndex, currentQuerySubstring, currentQuerySubstringCharacterIndex, 1, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) != 0;
 #pragma warning restore CA1309 // Use ordinal string comparison
                 }
                 else
@@ -216,17 +223,21 @@ namespace Wox.Infrastructure
             return new MatchResult(false, UserSettingSearchPrecision);
         }
 
-        // To get the index of the closest space which precedes the first matching index
+        // To get the index of the closest space which precedes the first matching index.
+        // spaceIndices is collected in ascending order, so we scan from the end to find the
+        // largest (closest) space index that is still before firstMatchIndex.
+        // This replaces an O(n log n) LINQ sort+filter with an O(n) linear scan.
         private static int CalculateClosestSpaceIndex(List<int> spaceIndices, int firstMatchIndex)
         {
-            if (spaceIndices.Count == 0)
+            for (int i = spaceIndices.Count - 1; i >= 0; i--)
             {
-                return -1;
+                if (spaceIndices[i] < firstMatchIndex)
+                {
+                    return spaceIndices[i];
+                }
             }
-            else
-            {
-                return spaceIndices.OrderBy(item => (firstMatchIndex - item)).Where(item => firstMatchIndex > item).FirstOrDefault(-1);
-            }
+
+            return -1;
         }
 
         private static bool AllPreviousCharsMatched(int startIndexToVerify, int currentQuerySubstringCharacterIndex, string fullStringToCompareWithoutCase, string currentQuerySubstring)
