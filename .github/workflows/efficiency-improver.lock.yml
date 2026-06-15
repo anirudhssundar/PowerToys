@@ -436,7 +436,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           sparse-checkout: |
-            .github
             src/modules/imageresizer/Models
           sparse-checkout-cone-mode: true
       - name: Create gh-aw temp directory
