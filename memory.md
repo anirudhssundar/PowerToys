@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-12
+2026-06-15
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -12,23 +12,19 @@
 - **Note**: Build NOT runnable in Linux CI environment
 
 ## Work In Progress
-- PR created: `efficiency/stringmatcher-hoist-preprocessing` branch
-  - Optimizes `StringMatcher.FuzzyMatch` in PowerToys Run launcher
-  - Hoists O(n) redundant preprocessing out of per-startIndex loop
-  - Eliminates per-character string allocations in inner loop
-  - Replaces O(n log n) LINQ sort with O(n) linear scan
-  - Estimated ~50x reduction in allocations per FuzzyMatch call
+*(none — both planned PRs have been submitted)*
 
 ## Completed Work
-*(none yet — first run)*
+- 2026-06-15: PR created for StringMatcher hoist preprocessing (branch: efficiency/stringmatcher-hoist-preprocessing-43048c4a1c55ede7)
+- 2026-06-15: PR created for ImageResizer filename processing (branch: efficiency/filename-processing-perf-3ee3c271cc336071-1dcb039a498ffd43)
 
 ## Optimisation Backlog
 
 ### HIGH Priority
-- **Code-Level | Launcher StringMatcher**: ✅ PR submitted — hoist preprocessing out of per-startIndex loop. ~50x allocation reduction per keystroke.
-- **Code-Level | Launcher StringMatcher**: `CalculateSearchScore` uses `query.Count(c => !char.IsWhiteSpace(c))` LINQ — could be replaced with a simple loop, but this is only called on a match, lower priority.
+- **Code-Level | Launcher StringMatcher**: ✅ PR submitted — hoist preprocessing out of per-startIndex loop. ~95% reduction in ToUpper/Split calls per keystroke.
 
 ### MEDIUM Priority
+- **Code-Level | ImageResizer GetDestinationPath**: ✅ PR submitted — HashSet + string.Create. −7 allocations per file in batch.
 - **Code-Level | SettingsRepository retry loop**: `Watcher_Changed` uses `Thread.Sleep(100)` in a loop (5 retries). Could use exponential backoff or `WaitForChanged`. Minor.
 - **Code-Level | ColorPicker UserSettings**: `Thread.Sleep(500)` in retry loops (lines 195, 205).
 - **Code-Level | AdvancedPaste UserSettings**: Similar Thread.Sleep retry patterns.
@@ -39,15 +35,16 @@
 - **Code-Level | Launcher UserSelectedRecord**: `foreach (var key in Records.Keys.ToList())` — unnecessary `.ToList()`.
 
 ## Efficiency Notes
-- PowerToys Run launcher is the highest-impact module for code-level efficiency. It runs on every user keystroke, calling StringMatcher.FuzzySearch 6+ times per Win32 program entry.
+- PowerToys Run launcher is the highest-impact module for code-level efficiency. It runs on every user keystroke.
 - Build is Windows-only (VS 2022 required), so no build validation possible in Linux CI.
-- Tests are in `src/modules/launcher/Wox.Test/FuzzyMatcherTest.cs`.
+- Previous runs hit token exhaustion (429 error) before creating PRs. Keep runs focused.
 
 ## Backlog Cursor
-Next: Check for more high-impact allocation patterns in launcher plugins (Microsoft.Plugin.Program Win32Program).
+Next: Investigate high-impact allocation patterns in launcher plugins (Microsoft.Plugin.Program Win32Program). Then look at the MEDIUM-priority Thread.Sleep retry patterns which waste CPU during I/O wait.
 
 ## Tasks Last Run
-- 2026-06-12: Task 1 (Discover Commands), Task 2 (Identify Opportunities), Task 3 (Implement), Task 7 (Monthly Summary)
+- 2026-06-15: Task 4 (Create PRs for existing branches), Task 7 (Monthly Summary)
+- 2026-06-12: Task 1 (Discover Commands), Task 2 (Identify Opportunities), Task 3 (Implement changes) — branch pushed but PR creation failed (token exhaustion)
 
 ## Previously Checked Off Items
 *(none)*
