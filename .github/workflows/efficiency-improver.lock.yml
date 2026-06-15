@@ -73,7 +73,10 @@ on:
         required: false
         type: string
 
-permissions: {}
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -374,7 +377,10 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max
@@ -432,7 +438,6 @@ jobs:
           sparse-checkout: |
             .github
             src/modules/imageresizer/Models
-            src/modules/imageresizer/tests/Models
           sparse-checkout-cone-mode: true
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
