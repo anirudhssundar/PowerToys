@@ -436,7 +436,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           sparse-checkout: |
-            src/modules/imageresizer/Models
+            src/modules/imageresizer/tests
           sparse-checkout-cone-mode: true
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
