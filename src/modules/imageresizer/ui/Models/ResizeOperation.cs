@@ -5,6 +5,7 @@
 #pragma warning restore IDE0073, SA1636
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Abstractions;
@@ -45,12 +46,12 @@ namespace ImageResizer.Models
             ];
 
         // Filenames to avoid according to https://learn.microsoft.com/windows/win32/fileio/naming-a-file#file-and-directory-names
-        private static readonly string[] _avoidFilenames =
-            [
-                "CON", "PRN", "AUX", "NUL",
-                "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-                "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-            ];
+        private static readonly HashSet<string> _avoidFilenames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        };
 
         public ResizeOperation(string file, string destinationDirectory, Settings settings, IAISuperResolutionService aiSuperResolutionService = null)
         {
@@ -600,16 +601,16 @@ namespace ImageResizer.Models
                 outputPixelWidth,
                 outputPixelHeight);
 
-            fileName = fileName
-                .Replace(':', '_')
-                .Replace('*', '_')
-                .Replace('?', '_')
-                .Replace('"', '_')
-                .Replace('<', '_')
-                .Replace('>', '_')
-                .Replace('|', '_');
+            fileName = string.Create(fileName.Length, fileName, static (span, source) =>
+            {
+                for (int i = 0; i < source.Length; i++)
+                {
+                    char c = source[i];
+                    span[i] = c is ':' or '*' or '?' or '"' or '<' or '>' or '|' ? '_' : c;
+                }
+            });
 
-            if (_avoidFilenames.Contains(fileName.ToUpperInvariant()))
+            if (_avoidFilenames.Contains(fileName))
             {
                 fileName = fileName + "_";
             }
