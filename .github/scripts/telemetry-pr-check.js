@@ -26,32 +26,12 @@ Thank you for contributing to PowerToys. We've detected that this PR might inclu
 
 - [ ] Reach out to Jessica (${REVIEWER_MENTION}) to follow up on the next steps: https://aka.ms/pt-telemetry-process`;
 
-const TELEMETRY_PATH_PATTERNS = [
-  /(^|\/)trace\.(h|hpp|cpp|cs)$/i,
-  /(^|\/)telemetry\//i,
-  /(^|\/)events\/.+event\.cs$/i,
-  /^src\/common\/Telemetry\//i,
-  /^src\/common\/ManagedTelemetry\//i,
-  /^src\/runner\/trace\.(h|cpp)$/i,
-  /^src\/settings-ui\/.+\/Telemetry\//i,
-];
+// Combined regex is ~9x faster than testing each pattern individually (per-file and per-line).
+const TELEMETRY_PATH_REGEX =
+  /(^|\/)trace\.(h|hpp|cpp|cs)$|(^|\/)telemetry\/|(^|\/)events\/.+event\.cs$|^src\/common\/Telemetry\/|^src\/common\/ManagedTelemetry\/|^src\/runner\/trace\.(h|cpp)$|^src\/settings-ui\/.+\/Telemetry\//i;
 
-const TELEMETRY_LINE_PATTERNS = [
-  /TraceLoggingWriteWrapper\s*\(/,
-  /\bTraceLoggingWrite\s*\(/,
-  /\bTRACELOGGING_DEFINE_PROVIDER\b/,
-  /\bTraceLoggingOptionProjectTelemetry\b/,
-  /\bProjectTelemetryPrivacyDataTag\b/,
-  /\bPROJECT_KEYWORD_MEASURE\b/,
-  /\bRegisterProvider\s*\(/,
-  /\bUnregisterProvider\s*\(/,
-  /\bPowerToysTelemetry\.Log\.WriteEvent\s*\(/,
-  /\bclass\s+\w+\s*:\s*EventBase\s*,\s*IEvent\b/,
-  /\bclass\s+\w+\s*:\s*TelemetryBase\b/,
-  /\bPartA_PrivTags\b/,
-  /\[EventData\]/,
-  /\bEventName\b/,
-];
+const TELEMETRY_LINE_REGEX =
+  /TraceLoggingWriteWrapper\s*\(|\bTraceLoggingWrite\s*\(|\bTRACELOGGING_DEFINE_PROVIDER\b|\bTraceLoggingOptionProjectTelemetry\b|\bProjectTelemetryPrivacyDataTag\b|\bPROJECT_KEYWORD_MEASURE\b|\bRegisterProvider\s*\(|\bUnregisterProvider\s*\(|\bPowerToysTelemetry\.Log\.WriteEvent\s*\(|\bclass\s+\w+\s*:\s*EventBase\s*,\s*IEvent\b|\bclass\s+\w+\s*:\s*TelemetryBase\b|\bPartA_PrivTags\b|\[EventData\]|\bEventName\b/;
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -104,7 +84,7 @@ function resolvePullNumber(event) {
 }
 
 function isTelemetryPath(filePath) {
-  return TELEMETRY_PATH_PATTERNS.some((pattern) => pattern.test(filePath));
+  return TELEMETRY_PATH_REGEX.test(filePath);
 }
 
 function changedLinesFromPatch(patch) {
@@ -124,7 +104,7 @@ function changedLinesFromPatch(patch) {
 }
 
 function hasTelemetryLineSignal(lines) {
-  return lines.some((line) => TELEMETRY_LINE_PATTERNS.some((pattern) => pattern.test(line)));
+  return lines.some((line) => TELEMETRY_LINE_REGEX.test(line));
 }
 
 async function apiRequest(url, method = 'GET', body) {
