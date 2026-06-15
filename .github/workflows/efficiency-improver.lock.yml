@@ -431,7 +431,8 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github
-            src/modules/imageresizer
+            src/modules/imageresizer/Models
+            src/modules/imageresizer/tests/Models
           sparse-checkout-cone-mode: true
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
