@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-15
+2026-06-15 (run 27581376978)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -15,10 +15,14 @@
 *(none)*
 
 ## Completed Work
-- 2026-06-15 (run 27566903334): PR #3 created — telemetry-pr-check.js regex optimization
-  - Branch: efficiency/combine-telemetry-regexes
+- 2026-06-15 (run 27566903334): PR #3 MERGED — telemetry-pr-check.js regex optimization
   - Benchmark: 9.12× speedup (89% fewer .test() calls), Node 22, correctness verified
-- 2026-06-15 (earlier run): Memory records StringMatcher + ImageResizer PRs but branches not found locally; likely failed silently. Ignore.
+- 2026-06-15 (run 27576993655): PR #6 submitted — dump-prs-since-commit.ps1 batch git-show
+  - Estimated 10–30× speedup on typical PowerToys release milestones (200–400 commits)
+- 2026-06-15 (run 27581376978): PR submitted — telemetry-pr-check.yml sparse-checkout
+  - Branch: efficiency/sparse-checkout-telemetry-ci
+  - ~99.99% checkout data reduction per PR invocation (~12 KB vs hundreds of MB)
+  - Closes issue #8 (which was a failed push fallback from earlier in this run)
 
 ## Optimisation Backlog
 
@@ -35,20 +39,26 @@
 
 ## Efficiency Notes
 - **Sparse checkout**: This fork has only ~2% of tracked files. Most PowerToys source (C#/C++) not locally accessible.
-- `telemetry-pr-check.js` is the only JavaScript CI script in sparse checkout. PR #3 submitted.
-- GitHub code search for this fork returns no results for source patterns — confirms sparse checkout limitation.
+- Available workflow files: telemetry-pr-check.yml, auto-label-issues.yml, dependency-review.yml, spelling2.yml, efficiency-improver.lock.yml, msstore-submissions.yml, package-submissions.yml, manual-batch-issue-deduplication.yml
+- `auto-label-issues.yml` uses github-script (no checkout) — no checkout optimization possible
+- `dependency-review.yml` uses checkout but dependency-review-action needs it for manifest files
 - Benchmark tool: `node` (v22 available in Linux CI). Can benchmark JS files.
 - Build validation impossible in Linux CI — document in PR test status.
 
 ## Backlog Cursor
-Next: Look at other available workflow YAML files for CI efficiency (conditional steps, caching opportunities). Or investigate the `winmd-api-search` cache generator Program.cs (available in sparse checkout).
+Next: Investigate other workflow YAML files (spelling2.yml, package-submissions.yml, msstore-submissions.yml) for checkout optimization. Or look at CI caching strategies in available workflows.
 
 ## Tasks Last Run
-- 2026-06-15 (run 27566903334): Task 3 (telemetry-pr-check.js regex optimization), Task 7 (Monthly Summary created as issue)
-- 2026-06-15 (earlier run): Task 4, Task 7
+- 2026-06-15 (run 27581376978): Task 3 (sparse-checkout-telemetry-ci PR), Task 4 (PR #6 review), Task 7 (Monthly Summary updated)
+- 2026-06-15 (run 27576993655): Task 3 (dump-prs-since-commit.ps1 batch git-show PR)
+- 2026-06-15 (run 27566903334): Task 3 (telemetry regex PR — merged), Task 7 (Monthly Summary created)
 
 ## Monthly Summary Issue
-- June 2026: created in run 27566903334 (issue number TBD — awaits safeoutputs resolution)
+- June 2026: issue #4 — updated in run 27581376978
 
 ## Previously Checked Off Items
 *(none)*
+
+## Open PRs (Efficiency Improver)
+- #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch
+- New (branch efficiency/sparse-checkout-telemetry-ci): sparse-checkout for telemetry-pr-check.yml
