@@ -132,12 +132,21 @@ Write-Info "Collecting commits between $startSha..$endSha (excluding start, incl
 # IMPORTANT: In PowerShell, the .. operator creates a numeric/char range. If $startSha and $endSha look like hex strings,
 # `$startSha..$endSha` must be passed as a single string argument.
 $rangeArg = "$startSha..$endSha"
-$commitList = git rev-list $rangeArg
 
-# Normalize list (filter out empty strings)
-$normalizedCommits = $commitList | Where-Object { $_ -and $_.Trim() -ne '' }
-$commitCount = ($normalizedCommits | Measure-Object).Count
-Write-DebugMsg ("Raw commitList length (including blanks): {0}" -f (($commitList | Measure-Object).Count))
+# Single git log call fetches all commit SHAs and subjects together, replacing N separate
+# `git show -s --format=%s <sha>` subprocess spawns. The "|||" delimiter is used so that
+# subject lines containing "|" are not accidentally truncated.
+$commitSubjectMap = @{}
+$logLines = git log --format="%H|||%s" $rangeArg
+foreach ($line in ($logLines | Where-Object { $_ -and $_.Trim() -ne '' })) {
+    $delimIdx = $line.IndexOf('|||')
+    if ($delimIdx -ge 40) {
+        $commitSubjectMap[$line.Substring(0, 40)] = $line.Substring($delimIdx + 3)
+    }
+}
+
+$normalizedCommits = @($commitSubjectMap.Keys)
+$commitCount = $normalizedCommits.Count
 Write-DebugMsg ("Normalized commit count: {0}" -f $commitCount)
 if ($commitCount -eq 0) {
     Write-Warn "No commits found in specified range ($startSha..$endSha)."; exit 0
@@ -154,7 +163,7 @@ Write-DebugMsg ("First 5 commits: {0}" -f (($normalizedCommits | Select-Object -
 # Extract PR numbers from merge or squash commits
 $mergeCommits = @()
 foreach ($c in $normalizedCommits) {
-    $subject = git show -s --format=%s $c
+    $subject = $commitSubjectMap[$c]  # O(1) lookup; no subprocess spawn
     $matched = $false
     # Pattern 1: Traditional merge commit
     if ($subject -match 'Merge pull request #([0-9]+) ') {
