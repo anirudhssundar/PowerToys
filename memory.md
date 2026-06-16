@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-16 (run 27634407962)
+2026-06-16 (run 27635261800)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -19,12 +19,10 @@
   - Benchmark: 9.12× speedup (89% fewer .test() calls), Node 22, correctness verified
 - 2026-06-15 (run 27576993655): PR #6 submitted — dump-prs-since-commit.ps1 batch git-show
   - Estimated 10–30× speedup on typical PowerToys release milestones (200–400 commits)
-- 2026-06-16 (run 27609572469): sparse-checkout-telemetry-ci-v2 bundle submitted
-  - Push failed, created issue #10 with bundle artifact instructions
-- 2026-06-16 (run 27634407962): sparse-checkout-telemetry-ci-v3 submitted
-  - Branch: efficiency/sparse-checkout-telemetry-ci-v3
-  - ~99.99% checkout data reduction per PR invocation (~12 KB vs hundreds of MB)
-  - Closes #10, #9, #8 (all failed-push fallback issues from previous runs)
+- 2026-06-16 (runs 27581376978, 27609572469, 27634407962, 27635261800): 5 attempts at sparse-checkout PR for telemetry-pr-check.yml
+  - ALL FAILED: .github/workflows/ path is protected — push blocked by protected-file restriction
+  - Issues #8, #9, #10, #11 created as fallbacks (all same 3-line change)
+  - v4 bundle at efficiency/sparse-checkout-telemetry-ci-v4 — needs manual apply by maintainer
 
 ## Optimisation Backlog
 
@@ -55,26 +53,33 @@
 - **Sparse-checkout push pattern**: `git sparse-checkout add --skip-checks '<file>'` works to add specific files to sparse checkout for editing.
 
 ## Backlog Cursor
-All available workflow files analyzed. Next focus: wait for open PRs to be reviewed/merged, or explore src/modules/imageresizer/tests (the only source in sparse checkout) for C# efficiency opportunities.
+All workflow files analyzed. Sparse-checkout optimization for telemetry-pr-check.yml BLOCKED (protected-file restriction — needs manual apply). Next focus:
+- Task 4: Monitor PR #6 for review/merge
+- Task 5: Comment on efficiency-related issues if any exist
+- Task 2: Look for new opportunities in msstore-submissions.yml jq consolidation (LOW priority, also protected)
+- Consider exploring whether any non-workflow script files remain unanalyzed
 
 ## Tasks Last Run
+- 2026-06-16 (run 27635261800): Task 3 (v4 sparse-checkout push attempt — also failed), Task 7 (Monthly Summary updated)
 - 2026-06-16 (run 27634407962): Task 3 (sparse-checkout-telemetry-ci-v3 PR), Task 7 (Monthly Summary updated)
 - 2026-06-16 (run 27609572469): Task 3 (sparse-checkout-telemetry-ci-v2 PR), Task 2 (workflow scan), Task 7 (Monthly Summary updated)
 - 2026-06-15 (run 27581376978): Task 3 (sparse-checkout-telemetry-ci PR — failed push), Task 4 (PR #6 review), Task 7 (Monthly Summary updated)
 - 2026-06-15 (run 27576993655): Task 3 (dump-prs-since-commit.ps1 batch git-show PR)
-- 2026-06-15 (run 27566903334): Task 3 (telemetry regex PR — merged), Task 7 (Monthly Summary created)
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 27634407962
+- June 2026: issue #4 — updated in run 27635261800
 
 ## Previously Checked Off Items
 *(none)*
 
 ## Open PRs (Efficiency Improver)
-- #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch
-- v3 (branch efficiency/sparse-checkout-telemetry-ci-v3): sparse-checkout for telemetry-pr-check.yml (PR number TBA — assigned after workflow completes)
+- #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch (open, no CI failures)
 
-## Open Issues (to close)
-- #8: superseded failed-push fallback (sparse-checkout v1)
-- #9: superseded failed-push fallback (sparse-checkout v2)
-- #10: superseded failed-push fallback (sparse-checkout v2b)
+## Open Issues (blocked/awaiting maintainer action)
+- #8, #9, #10, #11: all sparse-checkout fallback issues (same 3-line change) — BLOCKED by protected-file restriction, needs manual apply by maintainer; close #8-#10 once #11 is applied
+
+## Efficiency Notes — Protected-File Restriction
+- `.github/workflows/` files CANNOT be auto-pushed by this automation
+- The protected-file restriction blocks ALL push attempts for workflow YAMLs
+- DO NOT attempt further auto-PRs for workflow YAML files — always create as issues for manual apply
+- Non-workflow changes (scripts, PowerShell) CAN be auto-pushed (PR #3 merged, PR #6 open)
