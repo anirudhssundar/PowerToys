@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-16 (run 27609572469)
+2026-06-16 (run 27634407962)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -19,10 +19,12 @@
   - Benchmark: 9.12× speedup (89% fewer .test() calls), Node 22, correctness verified
 - 2026-06-15 (run 27576993655): PR #6 submitted — dump-prs-since-commit.ps1 batch git-show
   - Estimated 10–30× speedup on typical PowerToys release milestones (200–400 commits)
-- 2026-06-16 (run 27609572469): PR submitted — telemetry-pr-check.yml sparse-checkout (v2)
-  - Branch: efficiency/sparse-checkout-telemetry-ci-v2
+- 2026-06-16 (run 27609572469): sparse-checkout-telemetry-ci-v2 bundle submitted
+  - Push failed, created issue #10 with bundle artifact instructions
+- 2026-06-16 (run 27634407962): sparse-checkout-telemetry-ci-v3 submitted
+  - Branch: efficiency/sparse-checkout-telemetry-ci-v3
   - ~99.99% checkout data reduction per PR invocation (~12 KB vs hundreds of MB)
-  - Closes issue #9 and #8 (both failed-push fallback issues from previous runs)
+  - Closes #10, #9, #8 (all failed-push fallback issues from previous runs)
 
 ## Optimisation Backlog
 
@@ -50,22 +52,29 @@
 - `msstore-submissions.yml` / `package-submissions.yml` run only on releases — LOW impact
 - Benchmark tool: `node` (v22 available in Linux CI). Can benchmark JS files.
 - Build validation impossible in Linux CI — document in PR test status.
+- **Sparse-checkout push pattern**: `git sparse-checkout add --skip-checks '<file>'` works to add specific files to sparse checkout for editing.
 
 ## Backlog Cursor
-All available workflow files now analyzed. Next focus: wait for open PRs to be reviewed/merged, or investigate sparse checkout limitations for other opportunities.
+All available workflow files analyzed. Next focus: wait for open PRs to be reviewed/merged, or explore src/modules/imageresizer/tests (the only source in sparse checkout) for C# efficiency opportunities.
 
 ## Tasks Last Run
+- 2026-06-16 (run 27634407962): Task 3 (sparse-checkout-telemetry-ci-v3 PR), Task 7 (Monthly Summary updated)
 - 2026-06-16 (run 27609572469): Task 3 (sparse-checkout-telemetry-ci-v2 PR), Task 2 (workflow scan), Task 7 (Monthly Summary updated)
 - 2026-06-15 (run 27581376978): Task 3 (sparse-checkout-telemetry-ci PR — failed push), Task 4 (PR #6 review), Task 7 (Monthly Summary updated)
 - 2026-06-15 (run 27576993655): Task 3 (dump-prs-since-commit.ps1 batch git-show PR)
 - 2026-06-15 (run 27566903334): Task 3 (telemetry regex PR — merged), Task 7 (Monthly Summary created)
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 27609572469
+- June 2026: issue #4 — updated in run 27634407962
 
 ## Previously Checked Off Items
 *(none)*
 
 ## Open PRs (Efficiency Improver)
 - #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch
-- new (branch efficiency/sparse-checkout-telemetry-ci-v2): sparse-checkout for telemetry-pr-check.yml (PR number TBA — assigned after workflow completes)
+- v3 (branch efficiency/sparse-checkout-telemetry-ci-v3): sparse-checkout for telemetry-pr-check.yml (PR number TBA — assigned after workflow completes)
+
+## Open Issues (to close)
+- #8: superseded failed-push fallback (sparse-checkout v1)
+- #9: superseded failed-push fallback (sparse-checkout v2)
+- #10: superseded failed-push fallback (sparse-checkout v2b)
