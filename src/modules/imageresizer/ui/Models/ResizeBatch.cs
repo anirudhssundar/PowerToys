@@ -180,7 +180,7 @@ namespace ImageResizer.Models
         protected virtual async Task ExecuteAsync(string file, Settings settings)
         {
             var aiService = _aiSuperResolutionService ?? NoOpAiSuperResolutionService.Instance;
-            await new ResizeOperation(file, DestinationDirectory, settings, aiService).ExecuteAsync();
+            await new ResizeOperation(file, DestinationDirectory, settings, aiService, _fileSystem).ExecuteAsync();
         }
     }
 }

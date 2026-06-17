@@ -140,6 +140,17 @@ namespace ImageResizer.Properties
             Assert.AreEqual("{{T}}{0}e{1}s{2}t{3}{4}{5}%7", result);
         }
 
+        [TestMethod]
+        public void FileNameFormatIsInvalidatedWhenFileNameChanges()
+        {
+            var settings = new Settings { FileName = "%1 (%2)" };
+            _ = settings.FileNameFormat; // populate the cache
+
+            settings.FileName = "%1_%2";
+
+            Assert.AreEqual("{0}_{1}", settings.FileNameFormat);
+        }
+
         [DataTestMethod]
         [DataRow(0)]
         [DataRow(1)]
