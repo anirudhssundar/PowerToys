@@ -5,6 +5,7 @@
 #pragma warning restore IDE0073, SA1636
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Abstractions;
@@ -25,7 +26,8 @@ namespace ImageResizer.Models
 {
     internal class ResizeOperation
     {
-        private readonly IFileSystem _fileSystem = new System.IO.Abstractions.FileSystem();
+        // Stateless — all methods delegate to static System.IO.* APIs, so one shared instance is safe.
+        private static readonly IFileSystem _fileSystem = new System.IO.Abstractions.FileSystem();
 
         private readonly string _file;
         private readonly string _destinationDirectory;
@@ -45,12 +47,14 @@ namespace ImageResizer.Models
             ];
 
         // Filenames to avoid according to https://learn.microsoft.com/windows/win32/fileio/naming-a-file#file-and-directory-names
-        private static readonly string[] _avoidFilenames =
+        // HashSet with OrdinalIgnoreCase avoids per-call ToUpperInvariant() allocation.
+        private static readonly HashSet<string> _avoidFilenames = new(
             [
                 "CON", "PRN", "AUX", "NUL",
                 "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
                 "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-            ];
+            ],
+            StringComparer.OrdinalIgnoreCase);
 
         public ResizeOperation(string file, string destinationDirectory, Settings settings, IAISuperResolutionService aiSuperResolutionService = null)
         {
@@ -69,8 +73,10 @@ namespace ImageResizer.Models
                 var winrtInputStream = inputStream.AsRandomAccessStream();
                 var decoder = await BitmapDecoder.CreateAsync(winrtInputStream);
 
-                // Determine encoder ID from decoder
-                var encoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+                // Determine encoder ID from decoder — computed once and passed to EncodeToStreamAsync
+                // to avoid a duplicate GetEncoderIdForDecoder call there.
+                var decoderEncoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+                var encoderId = decoderEncoderId;
                 if (encoderId == null || !CodecHelper.CanEncode(encoderId.Value))
                 {
                     encoderId = CodecHelper.GetEncoderIdFromLegacyGuid(_settings.FallbackEncoder);
@@ -138,7 +144,8 @@ namespace ImageResizer.Models
                                         originalWidth,
                                         originalHeight);
                                 }
-                            });
+                            },
+                            decoderEncoderIdHint: decoderEncoderId);
                     }
                 }
             }
@@ -214,9 +221,15 @@ namespace ImageResizer.Models
             IRandomAccessStream outputStream,
             Guid encoderGuid,
             bool forceFresh,
-            Func<BitmapEncoder, bool, Task> writeContent)
+            Func<BitmapEncoder, bool, Task> writeContent,
+            Guid? decoderEncoderIdHint = null)
         {
-            var decoderEncoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+            // When forceFresh=true canTranscode is always false, so skip the codec lookup entirely.
+            // Otherwise use the hint supplied by the caller (already computed in ExecuteAsync) to
+            // avoid a redundant GetEncoderIdForDecoder call.
+            var decoderEncoderId = forceFresh
+                ? default(Guid?)
+                : (decoderEncoderIdHint ?? CodecHelper.GetEncoderIdForDecoder(decoder));
             bool canTranscode = !forceFresh
                 && !_settings.RemoveMetadata
                 && decoderEncoderId.HasValue
@@ -609,7 +622,7 @@ namespace ImageResizer.Models
                 .Replace('>', '_')
                 .Replace('|', '_');
 
-            if (_avoidFilenames.Contains(fileName.ToUpperInvariant()))
+            if (_avoidFilenames.Contains(fileName))
             {
                 fileName = fileName + "_";
             }
