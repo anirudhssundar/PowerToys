@@ -542,6 +542,7 @@ namespace ImageResizer.Properties
                 }
 
                 _fileName = value;
+                _fileNameFormat = null;
                 NotifyPropertyChanged();
             }
         }

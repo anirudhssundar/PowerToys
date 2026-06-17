@@ -5,6 +5,8 @@
 #pragma warning restore IDE0073, SA1636
 
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Abstractions;
@@ -25,7 +27,7 @@ namespace ImageResizer.Models
 {
     internal class ResizeOperation
     {
-        private readonly IFileSystem _fileSystem = new System.IO.Abstractions.FileSystem();
+        private readonly IFileSystem _fileSystem;
 
         private readonly string _file;
         private readonly string _destinationDirectory;
@@ -45,15 +47,47 @@ namespace ImageResizer.Models
             ];
 
         // Filenames to avoid according to https://learn.microsoft.com/windows/win32/fileio/naming-a-file#file-and-directory-names
-        private static readonly string[] _avoidFilenames =
-            [
-                "CON", "PRN", "AUX", "NUL",
-                "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-                "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-            ];
-
-        public ResizeOperation(string file, string destinationDirectory, Settings settings, IAISuperResolutionService aiSuperResolutionService = null)
+        private static readonly HashSet<string> _avoidFilenames = new(StringComparer.OrdinalIgnoreCase)
         {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        };
+
+        // Characters invalid in a size-name component (path separators that would create sub-directories)
+        private static readonly SearchValues<char> _sizeNameInvalidChars =
+            SearchValues.Create(['\\', '/']);
+
+        // Characters invalid in a Windows filename
+        private static readonly SearchValues<char> _fileNameInvalidChars =
+            SearchValues.Create([':', '*', '?', '"', '<', '>', '|']);
+
+        /// <summary>Replaces every occurrence of an invalid character with '_' in a single O(n) pass.</summary>
+        private static string SanitizeWithUnderscore(string input, SearchValues<char> invalidChars)
+        {
+            var span = input.AsSpan();
+            int firstInvalid = span.IndexOfAny(invalidChars);
+            if (firstInvalid < 0)
+            {
+                return input; // fast path — no invalid chars, no allocation
+            }
+
+            var chars = new char[input.Length];
+            span.CopyTo(chars);
+            for (int i = firstInvalid; i < chars.Length; i++)
+            {
+                if (invalidChars.Contains(chars[i]))
+                {
+                    chars[i] = '_';
+                }
+            }
+
+            return new string(chars);
+        }
+
+        public ResizeOperation(string file, string destinationDirectory, Settings settings, IAISuperResolutionService aiSuperResolutionService = null, IFileSystem fileSystem = null)
+        {
+            _fileSystem = fileSystem ?? new System.IO.Abstractions.FileSystem();
             _file = file;
             _destinationDirectory = destinationDirectory;
             _settings = settings;
@@ -584,9 +618,7 @@ namespace ImageResizer.Models
             string sizeName = _settings.SelectedSize is AiSize aiSize
                 ? aiSize.ScaleDisplay
                 : _settings.SelectedSize.Name;
-            string sizeNameSanitized = sizeName
-                .Replace('\\', '_')
-                .Replace('/', '_');
+            string sizeNameSanitized = SanitizeWithUnderscore(sizeName, _sizeNameInvalidChars);
 
             var selectedWidth = _settings.SelectedSize is AiSize ? outputPixelWidth : _settings.SelectedSize.Width;
             var selectedHeight = _settings.SelectedSize is AiSize ? outputPixelHeight : _settings.SelectedSize.Height;
@@ -600,16 +632,9 @@ namespace ImageResizer.Models
                 outputPixelWidth,
                 outputPixelHeight);
 
-            fileName = fileName
-                .Replace(':', '_')
-                .Replace('*', '_')
-                .Replace('?', '_')
-                .Replace('"', '_')
-                .Replace('<', '_')
-                .Replace('>', '_')
-                .Replace('|', '_');
+            fileName = SanitizeWithUnderscore(fileName, _fileNameInvalidChars);
 
-            if (_avoidFilenames.Contains(fileName.ToUpperInvariant()))
+            if (_avoidFilenames.Contains(fileName))
             {
                 fileName = fileName + "_";
             }
