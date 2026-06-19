@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-18 09:07 UTC (run 27748850464)
+2026-06-19 09:22 UTC (run 27817120053)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -15,6 +15,7 @@
 *(none)*
 
 ## Completed Work
+- 2026-06-19 (run 27817120053): Task 5 — Commented on issue #13 (status update on 7 findings); Task 2 — Identified F-8 (sizeNameSanitized pre-computation); Task 7 — Monthly summary updated
 - 2026-06-18 (run 27748850464): Task 4 — Commented on PR #16 (CI failures infrastructure-only); Task 7 — Monthly summary updated with PR #16 and PR #14 supersession
 - 2026-06-17 (fix run — run 27678861580): PR #16 submitted — ImageResizer efficiency fixes (F-1, F-2, F-4, F-5)
   - F-1: FileNameFormat stale cache invalidation (correctness bug + efficiency)
@@ -37,12 +38,14 @@
 *(none pending)*
 
 ### MEDIUM Priority
-- **Code-Level | ImageResizer F-3**: Duplicate `GetEncoderIdForDecoder` call per file (covered in PR #14 draft — superseded by PR #16, could be a follow-on PR)
+- **Code-Level | ImageResizer F-3**: Duplicate `GetEncoderIdForDecoder` call per file (was in PR #14 draft — superseded; NOT in PR #16 — needs follow-on PR after #16 merges)
+- **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG file; `JpegQualityLevel` is fixed per batch — pre-compute in constructor. 2 fewer allocs per JPEG file.
 - **Code-Level | Launcher EnvironmentHelper**: `foreach (string varName in newEnvironment.Keys.ToList())` — ToList() on Keys collection. Source NOT in sparse checkout.
 - **Code-Level | Launcher ResultsViewModel**: `.Where(...).ToList()` materialisation. Source NOT in sparse checkout.
 - **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops waste CPU during I/O wait. Source NOT in sparse checkout.
 
 ### LOW Priority
+- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` recomputed per file (2 Replace() calls on `_settings.SelectedSize.Name`); since `_settings.SelectedSize` doesn't change within a batch, result is identical for all files. Pre-compute in constructor. Eliminates 2 string allocs per file.
 - **Network & I/O | msstore-submissions.yml**: fetches ALL releases without pagination; 8 jq subprocess invocations where 1 would suffice. Runs only on release events.
 - **Network & I/O | package-submissions.yml**: wingetcreate.exe downloaded fresh on every release without caching. Runs only on release events.
 - **Code-Level | Launcher UserSelectedRecord**: `Records.Keys.ToList()` copy. Source NOT in sparse checkout.
@@ -69,19 +72,18 @@
 All workflow files analyzed. Sparse-checkout optimization for telemetry-pr-check.yml BLOCKED (protected-file restriction — needs manual apply). Current focus:
 - Task 4: Monitor PRs #6 and #16 for review/merge
 - PR #14 should be closed (superseded by PR #16) — maintainer action required
-- No new efficiency opportunities identified in this run (sparse checkout limits analysis)
+- F-3 (duplicate GetEncoderIdForDecoder) needs follow-on PR after #16 merges — not in any open PR
+- F-6 and F-8 are good candidates for next implementation PR (after #16 merges)
+- ImageResizer source files available in sparse checkout for further analysis
 
 ## Tasks Last Run
+- 2026-06-19 (run 27817120053): Task 5 (comment on issue #13), Task 2 (identified F-8), Task 7 (Monthly Summary updated)
 - 2026-06-18 (run 27748850464): Task 4 (PR #16 CI failure comment), Task 7 (Monthly Summary updated)
 - 2026-06-17 (run 27678861580): Task 3 (PR #16 imageresizer fix run)
 - 2026-06-16 (run 27635261800): Task 3 (v4 sparse-checkout push attempt — also failed), Task 7 (Monthly Summary updated)
-- 2026-06-16 (run 27634407962): Task 3 (sparse-checkout-telemetry-ci-v3 PR), Task 7 (Monthly Summary updated)
-- 2026-06-16 (run 27609572469): Task 3 (sparse-checkout-telemetry-ci-v2 PR), Task 2 (workflow scan), Task 7 (Monthly Summary updated)
-- 2026-06-15 (run 27581376978): Task 3 (sparse-checkout-telemetry-ci PR — failed push), Task 4 (PR #6 review), Task 7 (Monthly Summary updated)
-- 2026-06-15 (run 27576993655): Task 3 (dump-prs-since-commit.ps1 batch git-show PR)
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 27748850464
+- June 2026: issue #4 — updated in run 27817120053
 
 ## Previously Checked Off Items
 *(none)*
@@ -93,4 +95,4 @@ All workflow files analyzed. Sparse-checkout optimization for telemetry-pr-check
 
 ## Open Issues (blocked/awaiting maintainer action)
 - #8, #9, #10, #11: all sparse-checkout fallback issues (same 3-line change) — BLOCKED by protected-file restriction, needs manual apply by maintainer; close #8-#10 once #11 is applied
-- #13: ImageResizer analysis issue — 7 findings; F-1, F-2, F-4, F-5 addressed in PR #16; F-3 in PR #14 (superseded); F-6 and F-7 pending
+- #13: ImageResizer analysis issue — 7 findings; F-1, F-2, F-4, F-5 addressed in PR #16; F-3 needs follow-on; F-6 and F-7 pending; F-8 identified this run
