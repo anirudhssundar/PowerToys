@@ -69,8 +69,9 @@ namespace ImageResizer.Models
                 var winrtInputStream = inputStream.AsRandomAccessStream();
                 var decoder = await BitmapDecoder.CreateAsync(winrtInputStream);
 
-                // Determine encoder ID from decoder
-                var encoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+                // Determine encoder ID from decoder; save raw value for hint to avoid re-lookup in EncodeToStreamAsync.
+                var rawDecoderEncoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+                var encoderId = rawDecoderEncoderId;
                 if (encoderId == null || !CodecHelper.CanEncode(encoderId.Value))
                 {
                     encoderId = CodecHelper.GetEncoderIdFromLegacyGuid(_settings.FallbackEncoder);
@@ -138,7 +139,8 @@ namespace ImageResizer.Models
                                         originalWidth,
                                         originalHeight);
                                 }
-                            });
+                            },
+                            decoderEncoderIdHint: rawDecoderEncoderId);
                     }
                 }
             }
@@ -214,9 +216,10 @@ namespace ImageResizer.Models
             IRandomAccessStream outputStream,
             Guid encoderGuid,
             bool forceFresh,
-            Func<BitmapEncoder, bool, Task> writeContent)
+            Func<BitmapEncoder, bool, Task> writeContent,
+            Guid? decoderEncoderIdHint = null)
         {
-            var decoderEncoderId = CodecHelper.GetEncoderIdForDecoder(decoder);
+            var decoderEncoderId = decoderEncoderIdHint ?? CodecHelper.GetEncoderIdForDecoder(decoder);
             bool canTranscode = !forceFresh
                 && !_settings.RemoveMetadata
                 && decoderEncoderId.HasValue
