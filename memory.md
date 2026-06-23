@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-22 10:25 UTC (run 27945993254)
+2026-06-23 08:07 UTC (run 28011714250)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -43,12 +43,13 @@
 ### MEDIUM Priority
 - **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG file; `JpegQualityLevel` is fixed per batch. Caching would require shared state at ResizeBatch level or Settings level. 2 fewer allocs per JPEG file.
   - NOTE: Per-instance caching in ResizeOperation constructor doesn't help (constructor called once per file). Batch-level sharing needed.
+- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same result for all files in a batch (`SelectedSize.Name` doesn't change within a batch). Pre-computing at batch level in `ProcessAsync` and passing to `ResizeOperation` constructor saves 2 string allocs per file. Same architectural pattern as F-2 (IFileSystem sharing). Deferred until PRs #16/#17 merge to avoid piling more changes on top of un-reviewed PRs.
 - **Code-Level | Launcher EnvironmentHelper**: `foreach (string varName in newEnvironment.Keys.ToList())` — ToList() on Keys collection. Source NOT in sparse checkout.
 - **Code-Level | Launcher ResultsViewModel**: `.Where(...).ToList()` materialisation. Source NOT in sparse checkout.
 - **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops waste CPU during I/O wait. Source NOT in sparse checkout.
 
 ### LOW Priority
-- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` recomputed per file. Note: pre-computing in ResizeOperation constructor does NOT save anything (constructor called once per file, same as GetDestinationPath). Would need batch-level pre-computation to save across files. 2 string allocs per file saved.
+- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` recomputed per file. Note: pre-computing in ResizeOperation constructor does NOT save anything (constructor called once per file, same as GetDestinationPath). Would need batch-level pre-computation to save across files. 2 string allocs per file saved. Implementation: add optional `sizeNameSanitized` param to `ResizeOperation` constructor; compute once in `ResizeBatch.ProcessAsync` and pass down. Deferred until PRs #16/#17 merge.
 - **Network & I/O | msstore-submissions.yml**: fetches ALL releases without pagination; 8 jq subprocess invocations where 1 would suffice. Runs only on release events.
 - **Network & I/O | package-submissions.yml**: wingetcreate.exe downloaded fresh on every release without caching. Runs only on release events.
 - **Code-Level | Launcher UserSelectedRecord**: `Records.Keys.ToList()` copy. Source NOT in sparse checkout.
@@ -85,6 +86,7 @@ All workflow files analyzed. Sparse-checkout optimization for telemetry-pr-check
 - Issue #19 (BenchmarkDotNet) proposes measurement infrastructure — awaiting maintainer feedback
 
 ## Tasks Last Run
+- 2026-06-23 (run 28011714250): Task 2 (F-8 upgraded to MEDIUM, deferred), Task 4 (PR check — no action), Task 7 (Monthly Summary updated)
 - 2026-06-22 (run 27945993254): Task 4 (PR review — no action), Task 2 (F-6/F-8 re-evaluation), Task 7 (Monthly Summary updated)
 - 2026-06-21 (run 27899109219): Task 6 (Issue #19 — BenchmarkDotNet), Task 7 (Monthly Summary updated)
 - 2026-06-20 (run 27865081378): Task 3 (PR #17 F-3 fix), Task 4 (PR #14 closure comment)
