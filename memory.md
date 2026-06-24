@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-23 08:07 UTC (run 28011714250)
+2026-06-24 08:02 UTC (run 28084130360)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -15,7 +15,9 @@
 *(none)*
 
 ## Completed Work
-- 2026-06-22 (run 27945993254): Task 4 — reviewed all open PRs; no human comments, no new CI issues; Task 2 — re-evaluated F-6/F-8, both are LOW impact; Task 7 — Monthly summary updated (fixed #aw_bench18 → #19)
+- 2026-06-24 (run 28084130360): Task 2 — analyzed remaining ImageResizer files (CliOptions.cs, Program.cs, ResizeSize.cs), no new findings; Task 5 — no new human issues/comments; Task 4 — PRs unchanged; Task 7 — Monthly summary updated
+- 2026-06-23 (run 28011714250): Task 4 — reviewed all open PRs; no human comments, no new CI issues; Task 2 — re-evaluated F-6/F-8, both are LOW impact; Task 7 — Monthly summary updated (fixed #aw_bench18 → #19)
+- 2026-06-22 (run 27945993254): Task 4 (PR review — no action), Task 2 (F-6/F-8 re-evaluation), Task 7 (Monthly summary updated)
 - 2026-06-21 (run 27899109219): Task 6 — filed Issue #19 (BenchmarkDotNet proposal); Task 7 — Monthly summary updated
 - 2026-06-20 (run 27865081378): Task 3 — PR #17 submitted (F-3 eliminate duplicate GetEncoderIdForDecoder); Task 4 — commented on PR #14 recommending closure
 - 2026-06-19 (run 27817120053): Task 5 — Commented on issue #13 (status update on 7 findings); Task 2 — Identified F-8 (sizeNameSanitized pre-computation); Task 7 — Monthly summary updated
@@ -41,23 +43,20 @@
 *(none pending)*
 
 ### MEDIUM Priority
-- **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG file; `JpegQualityLevel` is fixed per batch. Caching would require shared state at ResizeBatch level or Settings level. 2 fewer allocs per JPEG file.
-  - NOTE: Per-instance caching in ResizeOperation constructor doesn't help (constructor called once per file). Batch-level sharing needed.
-- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same result for all files in a batch (`SelectedSize.Name` doesn't change within a batch). Pre-computing at batch level in `ProcessAsync` and passing to `ResizeOperation` constructor saves 2 string allocs per file. Same architectural pattern as F-2 (IFileSystem sharing). Deferred until PRs #16/#17 merge to avoid piling more changes on top of un-reviewed PRs.
+- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same result for all files in a batch. Pre-computing at batch level in `ProcessAsync` and passing to `ResizeOperation` constructor saves 2 string allocs per file. DEFERRED: both F-8 and PR #16 require modifying the `await new ResizeOperation(...)` line in `ResizeBatch.ExecuteAsync` — implement AFTER PR #16 merges.
+- **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG file; `JpegQualityLevel` is fixed per batch. Caching would require shared state at ResizeBatch level or Settings level. 2 fewer allocs per JPEG file. Thread-safety of BitmapPropertySet sharing needs investigation.
 - **Code-Level | Launcher EnvironmentHelper**: `foreach (string varName in newEnvironment.Keys.ToList())` — ToList() on Keys collection. Source NOT in sparse checkout.
 - **Code-Level | Launcher ResultsViewModel**: `.Where(...).ToList()` materialisation. Source NOT in sparse checkout.
 - **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops waste CPU during I/O wait. Source NOT in sparse checkout.
 
 ### LOW Priority
-- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` recomputed per file. Note: pre-computing in ResizeOperation constructor does NOT save anything (constructor called once per file, same as GetDestinationPath). Would need batch-level pre-computation to save across files. 2 string allocs per file saved. Implementation: add optional `sizeNameSanitized` param to `ResizeOperation` constructor; compute once in `ResizeBatch.ProcessAsync` and pass down. Deferred until PRs #16/#17 merge.
 - **Network & I/O | msstore-submissions.yml**: fetches ALL releases without pagination; 8 jq subprocess invocations where 1 would suffice. Runs only on release events.
 - **Network & I/O | package-submissions.yml**: wingetcreate.exe downloaded fresh on every release without caching. Runs only on release events.
 - **Code-Level | Launcher UserSelectedRecord**: `Records.Keys.ToList()` copy. Source NOT in sparse checkout.
 
 ## Efficiency Notes
 - **Sparse checkout**: This fork has only ~2% of tracked files. Most PowerToys source (C#/C++) not locally accessible.
-- Available workflow files: telemetry-pr-check.yml, auto-label-issues.yml, dependency-review.yml, spelling2.yml, efficiency-improver.lock.yml, msstore-submissions.yml, package-submissions.yml, manual-batch-issue-deduplication.yml, automatic-issue-deduplication.yml
-- All workflow files now analyzed for efficiency opportunities.
+- **ALL ImageResizer source files in sparse checkout now fully analyzed**: ResizeOperation.cs, ResizeBatch.cs, ResizeSize.cs, CliOptions.cs, Program.cs, AiSize.cs, ResizeFit.cs, ResizeUnit.cs, ImagingEnums.cs, CustomSize.cs, ResizeError.cs — no new findings beyond F-1 through F-8.
 - Benchmark tool: `node` (v22 available in Linux CI). Can benchmark JS files.
 - Build validation impossible in Linux CI — document in PR test status.
 
@@ -79,21 +78,23 @@
 - BitmapPropertySet is a WinRT type; thread-safety and ownership semantics need investigation before caching
 
 ## Backlog Cursor
-All workflow files analyzed. Sparse-checkout optimization for telemetry-pr-check.yml BLOCKED (protected-file restriction — needs manual apply). Current focus:
+All ImageResizer source files in sparse checkout analyzed. Sparse-checkout optimization for telemetry-pr-check.yml BLOCKED (protected-file restriction — needs manual apply). Current focus:
 - Task 4: Monitor PRs #6, #16, #17 for review/merge
 - PR #14 should be closed (superseded by PR #16) — maintainer action required
-- F-6 and F-8 are LOW impact with current architecture; defer unless architectural change is planned
+- F-8 blocked pending PR #16 merge (conflict avoidance)
+- F-6 requires thread-safety investigation before batch-level sharing
 - Issue #19 (BenchmarkDotNet) proposes measurement infrastructure — awaiting maintainer feedback
+- Next run: consider Task 6 (look for unexplored repo areas via GitHub API) or revisit Task 3 if PRs have merged
 
 ## Tasks Last Run
+- 2026-06-24 (run 28084130360): Task 2 (final ImageResizer scan), Task 5 (no new issues), Task 4 (PR check), Task 7 (Monthly Summary updated)
 - 2026-06-23 (run 28011714250): Task 2 (F-8 upgraded to MEDIUM, deferred), Task 4 (PR check — no action), Task 7 (Monthly Summary updated)
 - 2026-06-22 (run 27945993254): Task 4 (PR review — no action), Task 2 (F-6/F-8 re-evaluation), Task 7 (Monthly Summary updated)
 - 2026-06-21 (run 27899109219): Task 6 (Issue #19 — BenchmarkDotNet), Task 7 (Monthly Summary updated)
 - 2026-06-20 (run 27865081378): Task 3 (PR #17 F-3 fix), Task 4 (PR #14 closure comment)
-- 2026-06-19 (run 27817120053): Task 5 (comment on issue #13), Task 2 (identified F-8), Task 7 (Monthly Summary updated)
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 27945993254
+- June 2026: issue #4 — updated in run 28084130360
 
 ## Previously Checked Off Items
 *(none)*
