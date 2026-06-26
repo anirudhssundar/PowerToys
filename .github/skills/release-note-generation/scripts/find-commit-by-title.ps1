@@ -55,15 +55,15 @@ try {
     Write-Info "Searching branch: $branchRef"
 
     $matches = git log $branchRef --format="%H|%s" | Where-Object { $_ -match '\|' }
-    $results = @()
+    $results = [System.Collections.Generic.List[object]]::new()
     foreach ($line in $matches) {
         $parts = $line -split '\|', 2
         if ($parts.Count -eq 2 -and $parts[1] -eq $subject) {
-            $results += [PSCustomObject]@{ Sha = $parts[0]; Title = $parts[1] }
+            $results.Add([PSCustomObject]@{ Sha = $parts[0]; Title = $parts[1] })
         }
     }
 
-    if (-not $results -or $results.Count -eq 0) {
+    if ($results.Count -eq 0) {
         Write-Info "No matching commit found on $branchRef for the given title."
         exit 0
     }
