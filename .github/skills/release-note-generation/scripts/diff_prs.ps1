@@ -62,10 +62,10 @@ foreach ($row in $baseRows) {
 }
 
 # Filter rows in AllCsv whose key is not in base (these are the new / incremental rows)
-$incremental = @()
+$incremental = [System.Collections.Generic.List[object]]::new()
 foreach ($row in $allRows) {
     $val = [string]($row.$Key)
-    if (-not $set.Contains($val)) { $incremental += $row }
+    if (-not $set.Contains($val)) { $incremental.Add($row) }
 }
 
 # Preserve column order from the All CSV
