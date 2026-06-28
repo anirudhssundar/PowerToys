@@ -1,41 +1,30 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-24 08:02 UTC (run 28084130360)
+2026-06-28 08:05 UTC (run 28315942087)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
 - **PowerShell**: `./tools/build/build.ps1 -Platform x64 -Configuration Release`
 - **Tests**: VS Test Explorer (`Ctrl+E, T`) or `vstest.console.exe`. Avoid `dotnet test`.
 - **Lint**: StyleCop.Analyzers (C#), clang-format (C++), XamlStyler (XAML)
-- **Build requires**: Visual Studio 2022 17.4+ on Windows 10 1803+
-- **Note**: Build NOT runnable in Linux CI environment. Sparse checkout has ~2% of files.
+- **Note**: Build NOT runnable in Linux CI. Sparse checkout has ~2% of files.
 
 ## Work In Progress
 *(none)*
 
 ## Completed Work
-- 2026-06-24 (run 28084130360): Task 2 — analyzed remaining ImageResizer files (CliOptions.cs, Program.cs, ResizeSize.cs), no new findings; Task 5 — no new human issues/comments; Task 4 — PRs unchanged; Task 7 — Monthly summary updated
-- 2026-06-23 (run 28011714250): Task 4 — reviewed all open PRs; no human comments, no new CI issues; Task 2 — re-evaluated F-6/F-8, both are LOW impact; Task 7 — Monthly summary updated (fixed #aw_bench18 → #19)
-- 2026-06-22 (run 27945993254): Task 4 (PR review — no action), Task 2 (F-6/F-8 re-evaluation), Task 7 (Monthly summary updated)
-- 2026-06-21 (run 27899109219): Task 6 — filed Issue #19 (BenchmarkDotNet proposal); Task 7 — Monthly summary updated
-- 2026-06-20 (run 27865081378): Task 3 — PR #17 submitted (F-3 eliminate duplicate GetEncoderIdForDecoder); Task 4 — commented on PR #14 recommending closure
-- 2026-06-19 (run 27817120053): Task 5 — Commented on issue #13 (status update on 7 findings); Task 2 — Identified F-8 (sizeNameSanitized pre-computation); Task 7 — Monthly summary updated
-- 2026-06-18 (run 27748850464): Task 4 — Commented on PR #16 (CI failures infrastructure-only); Task 7 — Monthly summary updated with PR #16 and PR #14 supersession
-- 2026-06-17 (fix run — run 27678861580): PR #16 submitted — ImageResizer efficiency fixes (F-1, F-2, F-4, F-5)
-  - F-1: FileNameFormat stale cache invalidation (correctness bug + efficiency)
-  - F-2: Shared IFileSystem across parallel ResizeOperation instances
-  - F-4: SearchValues<char> single-pass path sanitization (9 allocs -> 0-2 per file)
-  - F-5: HashSet<string>(OrdinalIgnoreCase) replaces array + ToUpperInvariant()
-  - Branch: efficiency/imageresizer-perf-cache-alloc
-- 2026-06-15 (run 27566903334): PR #3 MERGED — telemetry-pr-check.js regex optimization
-  - Benchmark: 9.12x speedup (89% fewer .test() calls), Node 22, correctness verified
-- 2026-06-15 (run 27576993655): PR #6 submitted — dump-prs-since-commit.ps1 batch git-show
-  - Estimated 10-30x speedup on typical PowerToys release milestones (200-400 commits)
-- 2026-06-16 (runs 27581376978, 27609572469, 27634407962, 27635261800): 5 attempts at sparse-checkout PR for telemetry-pr-check.yml
-  - ALL FAILED: .github/workflows/ path is protected — push blocked by protected-file restriction
-  - Issues #8, #9, #10, #11 created as fallbacks (all same 3-line change)
-  - v4 bundle at efficiency/sparse-checkout-telemetry-ci-v4 — needs manual apply by maintainer
+- 2026-06-28 (run 28315942087): Task 4 — discovered PR #22 (O(n²) → O(n) PS1 array append, created 2026-06-26 by run 28225749722); no new human comments on any PR; Task 7 — Monthly summary updated
+- 2026-06-26 (run 28225749722): Task 3 — PR #22 submitted (O(n²) → O(n) in diff_prs.ps1 and find-commit-by-title.ps1). Run failed with token budget exhausted after PR creation.
+- 2026-06-25 (run 28155752616): Run failed with token budget exhausted before completing.
+- 2026-06-24 (run 28084130360): Task 2 — analyzed remaining ImageResizer files, no new findings; Task 4 — PRs unchanged; Task 7 — Monthly summary updated
+- 2026-06-23 (run 28011714250): Task 2 (F-8 upgraded to MEDIUM, deferred); Task 4 (PR check); Task 7 updated
+- 2026-06-22 (run 27945993254): Task 4 (PR review), Task 2 (F-6/F-8 re-evaluation), Task 7 updated
+- 2026-06-21 (run 27899109219): Task 6 — filed Issue #19 (BenchmarkDotNet); Task 7 updated
+- 2026-06-20 (run 27865081378): Task 3 — PR #17 submitted (F-3); Task 4 — PR #14 closure comment
+- 2026-06-19 (run 27817120053): Task 5 — Commented on #13; Task 2 — F-8 identified
+- 2026-06-17 (run 27678861580): PR #16 submitted (F-1, F-2, F-4, F-5)
+- 2026-06-15: PR #3 MERGED (telemetry-pr-check.js 9.12x speedup); PR #6 submitted
 
 ## Optimisation Backlog
 
@@ -43,70 +32,50 @@
 *(none pending)*
 
 ### MEDIUM Priority
-- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same result for all files in a batch. Pre-computing at batch level in `ProcessAsync` and passing to `ResizeOperation` constructor saves 2 string allocs per file. DEFERRED: both F-8 and PR #16 require modifying the `await new ResizeOperation(...)` line in `ResizeBatch.ExecuteAsync` — implement AFTER PR #16 merges.
-- **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG file; `JpegQualityLevel` is fixed per batch. Caching would require shared state at ResizeBatch level or Settings level. 2 fewer allocs per JPEG file. Thread-safety of BitmapPropertySet sharing needs investigation.
-- **Code-Level | Launcher EnvironmentHelper**: `foreach (string varName in newEnvironment.Keys.ToList())` — ToList() on Keys collection. Source NOT in sparse checkout.
-- **Code-Level | Launcher ResultsViewModel**: `.Where(...).ToList()` materialisation. Source NOT in sparse checkout.
-- **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops waste CPU during I/O wait. Source NOT in sparse checkout.
+- **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same for all files in a batch. Pre-computing saves 2 allocs per file. DEFERRED: implement AFTER PR #16 merges (conflict avoidance — both touch ResizeBatch.cs).
+- **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG; fixed per batch. Thread-safety of sharing needs investigation.
+- **Code-Level | Launcher EnvironmentHelper/ResultsViewModel**: `.ToList()` copies. Source NOT in sparse checkout.
+- **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops. Source NOT in sparse checkout.
 
 ### LOW Priority
-- **Network & I/O | msstore-submissions.yml**: fetches ALL releases without pagination; 8 jq subprocess invocations where 1 would suffice. Runs only on release events.
-- **Network & I/O | package-submissions.yml**: wingetcreate.exe downloaded fresh on every release without caching. Runs only on release events.
-- **Code-Level | Launcher UserSelectedRecord**: `Records.Keys.ToList()` copy. Source NOT in sparse checkout.
+- **Network & I/O | msstore-submissions.yml/package-submissions.yml**: 8 jq subprocess invocations; no wingetcreate caching. Protected-file paths.
 
 ## Efficiency Notes
-- **Sparse checkout**: This fork has only ~2% of tracked files. Most PowerToys source (C#/C++) not locally accessible.
-- **ALL ImageResizer source files in sparse checkout now fully analyzed**: ResizeOperation.cs, ResizeBatch.cs, ResizeSize.cs, CliOptions.cs, Program.cs, AiSize.cs, ResizeFit.cs, ResizeUnit.cs, ImagingEnums.cs, CustomSize.cs, ResizeError.cs — no new findings beyond F-1 through F-8.
-- Benchmark tool: `node` (v22 available in Linux CI). Can benchmark JS files.
-- Build validation impossible in Linux CI — document in PR test status.
-
-## Efficiency Notes — Protected-File Restriction
-- `.github/workflows/` files CANNOT be auto-pushed by this automation
-- The protected-file restriction blocks ALL push attempts for workflow YAMLs
-- DO NOT attempt further auto-PRs for workflow YAML files — always create as issues for manual apply
-- Non-workflow changes (scripts, PowerShell) CAN be auto-pushed (PR #3 merged, PR #6 open)
-
-## Efficiency Notes — CI Infrastructure Issues (as of 2026-06-18)
-- `check-spelling` action v0.0.26 has a security advisory (credential leak) causing ALL PR checks to fail — this is NOT caused by our code changes
-- `dependency-review` fails because Dependency Graph is not enabled for this repo — this is NOT caused by our code changes
-- Both CI failures on PR #16 are infrastructure-only
-
-## Efficiency Notes — ResizeOperation Architecture
-- ResizeOperation is created ONCE per file (not reused across files in a batch)
-- Therefore, caching computed values in the ResizeOperation constructor only helps if GetDestinationPath() is called multiple times per instance (it isn't — called once per file)
-- F-6/F-8 cross-batch savings require architectural changes (passing cached values from ResizeBatch, or Settings-level caching)
-- BitmapPropertySet is a WinRT type; thread-safety and ownership semantics need investigation before caching
+- **Sparse checkout**: ~2% of tracked files locally accessible.
+- **ALL ImageResizer source files in sparse checkout fully analyzed** — no new findings beyond F-1 through F-8.
+- **Protected-file restriction**: `.github/workflows/` and `.github/skills/` CANNOT be auto-pushed. Always create as issues for manual apply.
+- **CI Infrastructure Issues**: `check-spelling` v0.0.26 has security advisory (fails all PRs); `dependency-review` fails (Dependency Graph not enabled). NOT caused by our code.
+- **Token budget**: Recent runs failing at ~5-6M ET. Keep monthly summary concise.
+- **ResizeOperation architecture**: One instance per file, not reused. F-6/F-8 require batch-level changes.
 
 ## Backlog Cursor
-All ImageResizer source files in sparse checkout analyzed. Sparse-checkout optimization for telemetry-pr-check.yml BLOCKED (protected-file restriction — needs manual apply). Current focus:
-- Task 4: Monitor PRs #6, #16, #17 for review/merge
-- PR #14 should be closed (superseded by PR #16) — maintainer action required
-- F-8 blocked pending PR #16 merge (conflict avoidance)
-- F-6 requires thread-safety investigation before batch-level sharing
-- Issue #19 (BenchmarkDotNet) proposes measurement infrastructure — awaiting maintainer feedback
-- Next run: consider Task 6 (look for unexplored repo areas via GitHub API) or revisit Task 3 if PRs have merged
+All ImageResizer source analyzed. Sparse-checkout telemetry YAML blocked. Current focus:
+- Task 4: Monitor PRs #6, #14, #16, #17, #22 for review/merge
+- PR #14 needs closure (superseded by #16)
+- F-8/F-6 blocked pending #16/#17 merge
+- Issue #19 (BenchmarkDotNet) awaiting feedback
 
 ## Tasks Last Run
-- 2026-06-24 (run 28084130360): Task 2 (final ImageResizer scan), Task 5 (no new issues), Task 4 (PR check), Task 7 (Monthly Summary updated)
-- 2026-06-23 (run 28011714250): Task 2 (F-8 upgraded to MEDIUM, deferred), Task 4 (PR check — no action), Task 7 (Monthly Summary updated)
-- 2026-06-22 (run 27945993254): Task 4 (PR review — no action), Task 2 (F-6/F-8 re-evaluation), Task 7 (Monthly Summary updated)
-- 2026-06-21 (run 27899109219): Task 6 (Issue #19 — BenchmarkDotNet), Task 7 (Monthly Summary updated)
-- 2026-06-20 (run 27865081378): Task 3 (PR #17 F-3 fix), Task 4 (PR #14 closure comment)
+- 2026-06-28 (run 28315942087): Task 4 (PR review — discovered #22), Task 7 (Monthly Summary)
+- 2026-06-26 (run 28225749722): Task 3 (PR #22 O(n²) PS1 fix), Task 7 partial
+- 2026-06-25 (run 28155752616): Failed
+- 2026-06-24 (run 28084130360): Task 2 (ImageResizer scan), Task 5, Task 4, Task 7
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 28084130360
+- June 2026: issue #4 — updated in run 28315942087
 
 ## Previously Checked Off Items
 *(none)*
 
 ## Open PRs (Efficiency Improver)
-- #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch (open, no CI failures)
-- #14: perf(ImageResizer): reduce per-file allocations in ResizeOperation (draft, SUPERSEDED BY #16 — suggest close)
-- #16: perf(imageresizer): reduce per-file allocations + fix FileNameFormat cache (open, awaiting maintainer build+test; CI failures are infrastructure-only)
-- #17: perf(imageresizer): eliminate duplicate GetEncoderIdForDecoder call per file (draft, no CI issues)
+- #6: perf(dump-prs-since-commit): replace N git-show calls with single git log batch (open draft)
+- #14: perf(ImageResizer): reduce per-file allocations (draft, SUPERSEDED BY #16 — suggest close)
+- #16: perf(imageresizer): reduce per-file allocations + fix FileNameFormat cache (open, CI failures infrastructure-only)
+- #17: perf(imageresizer): eliminate duplicate GetEncoderIdForDecoder call per file (draft)
+- #22: perf(release-scripts): replace O(n²) array append with generic List in PS1 scripts (draft, protected-files flag)
 
 ## Open Issues (blocked/awaiting maintainer action)
-- #8, #9, #10, #11: all sparse-checkout fallback issues (same 3-line change) — BLOCKED by protected-file restriction, needs manual apply by maintainer; close #8-#10 once #11 is applied
+- #8, #9, #10, #11: sparse-checkout fallback issues (same 3-line YAML change to telemetry-pr-check.yml) — needs manual apply
 - #12: perf(telemetry-pr-check) — older sparse-checkout issue, superseded by #11
-- #13: ImageResizer analysis issue — 7 findings; F-1, F-2, F-4, F-5 addressed in PR #16; F-3 in PR #17; F-6 and F-7 pending; F-8 analyzed
-- #19: BenchmarkDotNet micro-benchmarks proposal — awaiting maintainer feedback
+- #13: ImageResizer analysis — 7 findings; F-1/F-2/F-4/F-5 in #16; F-3 in #17; F-6/F-7 pending; F-8 analyzed
+- #19: BenchmarkDotNet proposal — awaiting feedback
