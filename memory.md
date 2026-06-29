@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-06-28 08:05 UTC (run 28315942087)
+2026-06-29 09:19 UTC (run 28361576460)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -14,6 +14,7 @@
 *(none)*
 
 ## Completed Work
+- 2026-06-29 (run 28361576460): Task 2 — analyzed auto-cherry-pick.ps1, Program.cs — no new findings; ALL sparse-checkout files now fully scanned; Task 4 — PRs unchanged; Task 7 — Monthly summary updated
 - 2026-06-28 (run 28315942087): Task 4 — discovered PR #22 (O(n²) → O(n) PS1 array append, created 2026-06-26 by run 28225749722); no new human comments on any PR; Task 7 — Monthly summary updated
 - 2026-06-26 (run 28225749722): Task 3 — PR #22 submitted (O(n²) → O(n) in diff_prs.ps1 and find-commit-by-title.ps1). Run failed with token budget exhausted after PR creation.
 - 2026-06-25 (run 28155752616): Run failed with token budget exhausted before completing.
@@ -42,27 +43,27 @@
 
 ## Efficiency Notes
 - **Sparse checkout**: ~2% of tracked files locally accessible.
-- **ALL ImageResizer source files in sparse checkout fully analyzed** — no new findings beyond F-1 through F-8.
+- **ALL sparse-checkout files fully analyzed** (ImageResizer Models, auto-cherry-pick.ps1, Program.cs) — no new findings beyond F-1 through F-8.
 - **Protected-file restriction**: `.github/workflows/` and `.github/skills/` CANNOT be auto-pushed. Always create as issues for manual apply.
 - **CI Infrastructure Issues**: `check-spelling` v0.0.26 has security advisory (fails all PRs); `dependency-review` fails (Dependency Graph not enabled). NOT caused by our code.
-- **Token budget**: Recent runs failing at ~5-6M ET. Keep monthly summary concise.
+- **Token budget**: Keep monthly summary concise to avoid exhaustion.
 - **ResizeOperation architecture**: One instance per file, not reused. F-6/F-8 require batch-level changes.
 
 ## Backlog Cursor
-All ImageResizer source analyzed. Sparse-checkout telemetry YAML blocked. Current focus:
+ALL sparse-checkout files analyzed. No new files to scan until sparse checkout is expanded or PRs merge.
+Current focus:
 - Task 4: Monitor PRs #6, #14, #16, #17, #22 for review/merge
 - PR #14 needs closure (superseded by #16)
 - F-8/F-6 blocked pending #16/#17 merge
 - Issue #19 (BenchmarkDotNet) awaiting feedback
 
 ## Tasks Last Run
-- 2026-06-28 (run 28315942087): Task 4 (PR review — discovered #22), Task 7 (Monthly Summary)
-- 2026-06-26 (run 28225749722): Task 3 (PR #22 O(n²) PS1 fix), Task 7 partial
-- 2026-06-25 (run 28155752616): Failed
-- 2026-06-24 (run 28084130360): Task 2 (ImageResizer scan), Task 5, Task 4, Task 7
+- 2026-06-29 (run 28361576460): Task 2 (scan remaining files), Task 4 (PR check), Task 7 (Monthly Summary)
+- 2026-06-28 (run 28315942087): Task 4 (PR review), Task 7 (Monthly Summary)
+- 2026-06-26 (run 28225749722): Task 3 (PR #22), Task 7 partial
 
 ## Monthly Summary Issue
-- June 2026: issue #4 — updated in run 28315942087
+- June 2026: issue #4 — updated in run 28361576460
 
 ## Previously Checked Off Items
 *(none)*
