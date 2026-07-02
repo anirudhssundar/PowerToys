@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-07-01 08:39 UTC (run 28504751794)
+2026-07-02 07:54 UTC (run 28574372542)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -14,7 +14,8 @@
 *(none)*
 
 ## Completed Work
-- 2026-07-01 (run 28504751794): Task 4 — verified all PRs, no new human activity; Task 7 — closed June #4, created July 2026 monthly (number TBD)
+- 2026-07-02 (run 28574372542): Task 4 — no new human activity on PRs; Task 2 — scanned tools/ via GitHub API (LOW findings only); Task 7 — monthly summary updated
+- 2026-07-01 (run 28504751794): Task 4 — verified all PRs, no new human activity; Task 7 — closed June #4, created July 2026 monthly #24
 - 2026-06-30 (run 28429830976): Task 4 — verified all PRs, no new human activity; Task 7 — Monthly summary updated
 - 2026-06-29 (run 28361576460): Task 2 — analyzed auto-cherry-pick.ps1, Program.cs — no new findings; ALL sparse-checkout files now fully scanned; Task 4 — PRs unchanged; Task 7 — Monthly summary updated
 - 2026-06-28 (run 28315942087): Task 4 — discovered PR #22 (O(n²) → O(n) PS1 array append, created 2026-06-26 by run 28225749722); no new human comments on any PR; Task 7 — Monthly summary updated
@@ -42,33 +43,37 @@
 
 ### LOW Priority
 - **Network & I/O | msstore-submissions.yml/package-submissions.yml**: 8 jq subprocess invocations; no wingetcreate caching. Protected-file paths.
+- **Code-Level | tools/mcp/github-artifacts/server.js**: `fetchAllComments()` uses `comments.concat(pageComments)` inside loop — O(n) copy per page. Dev tool, low frequency, negligible impact.
+- **Code-Level | tools/Test-AutoLabelProduct.ps1**: nested `Where-Object` label filter is O(n²) but with tiny n (max 100 issues × max ~10 labels). No action needed.
 
 ## Efficiency Notes
 - **Sparse checkout**: ~2% of tracked files locally accessible.
 - **ALL sparse-checkout files fully analyzed** (ImageResizer Models, auto-cherry-pick.ps1, Program.cs) — no new findings beyond F-1 through F-8.
+- **tools/ directory analyzed via GitHub API** (2026-07-02): build-common.ps1 and server.js — only LOW priority findings.
 - **Protected-file restriction**: `.github/workflows/` and `.github/skills/` CANNOT be auto-pushed. Always create as issues for manual apply.
 - **CI Infrastructure Issues**: `check-spelling` v0.0.26 has security advisory (fails all PRs); `dependency-review` fails (Dependency Graph not enabled). NOT caused by our code.
 - **Token budget**: Keep monthly summary concise to avoid exhaustion.
 - **ResizeOperation architecture**: One instance per file, not reused. F-6/F-8 require batch-level changes.
 
 ## Backlog Cursor
-ALL sparse-checkout files analyzed. No new files to scan until sparse checkout is expanded or PRs merge.
+ALL sparse-checkout AND tools/ files analyzed via GitHub API. No new HIGH/MEDIUM findings.
 Current focus:
 - Task 4: Monitor PRs #6, #14, #16, #17, #22 for review/merge
 - PR #14 needs closure (superseded by #16)
 - F-8/F-6 blocked pending #16/#17 merge
 - Issue #19 (BenchmarkDotNet) awaiting feedback
+- Next unexplored area: .github/skills/ scripts (protected, issue-only approach) or src/common/ via GitHub API
 
 ## Tasks Last Run
+- 2026-07-02 (run 28574372542): Task 4 (PR check), Task 2 (tools/ scan), Task 7 (Monthly Summary)
 - 2026-07-01 (run 28504751794): Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-06-30 (run 28429830976): Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-06-29 (run 28361576460): Task 2 (scan remaining files), Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-06-28 (run 28315942087): Task 4 (PR review), Task 7 (Monthly Summary)
-- 2026-06-26 (run 28225749722): Task 3 (PR #22), Task 7 partial
 
 ## Monthly Summary Issue
 - June 2026: issue #4 — CLOSED in run 28504751794
-- July 2026: issue TBD — created in run 28504751794 (check issue list for actual number)
+- July 2026: issue #24 — created in run 28504751794
 
 ## Previously Checked Off Items
 *(none)*
