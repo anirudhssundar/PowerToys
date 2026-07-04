@@ -34,13 +34,26 @@ public class StringMatcher
             return new MatchResult(false, SearchPrecisionScore.Regular);
         }
 
+        // SM-1: Pre-compute once here instead of per-startIndex in the inner overload,
+        // eliminating O(L) redundant Trim/ToUpper/Split allocations where L = stringToCompare.Length.
+        query = query?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(query))
+        {
+            return new MatchResult(false, SearchPrecisionScore.Regular);
+        }
+
+        // Using InvariantCulture since this is internal
+        var fullStringToCompareWithoutCase = opt.IgnoreCase ? stringToCompare.ToUpper(CultureInfo.InvariantCulture) : stringToCompare;
+        var queryWithoutCase = opt.IgnoreCase ? query.ToUpper(CultureInfo.InvariantCulture) : query;
+        var querySubstrings = queryWithoutCase.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+
         SearchPrecisionScore score = SearchPrecisionScore.Regular;
 
         var bestResult = new MatchResult(false, score);
 
         for (int startIndex = 0; startIndex < stringToCompare.Length; startIndex++)
         {
-            MatchResult result = FuzzyMatch(query, stringToCompare, opt, startIndex);
+            MatchResult result = FuzzyMatch(query, stringToCompare, opt, startIndex, fullStringToCompareWithoutCase, querySubstrings);
             if (result.Success && (!bestResult.Success || result.Score > bestResult.Score))
             {
                 bestResult = result;
@@ -50,22 +63,10 @@ public class StringMatcher
         return bestResult;
     }
 
-    private static MatchResult FuzzyMatch(string query, string stringToCompare, MatchOption opt, int startIndex)
+    private static MatchResult FuzzyMatch(string query, string stringToCompare, MatchOption opt, int startIndex, string fullStringToCompareWithoutCase, string[] querySubstrings)
     {
-        if (string.IsNullOrEmpty(stringToCompare) || string.IsNullOrEmpty(query))
-        {
-            return new MatchResult(false, SearchPrecisionScore.Regular);
-        }
-
-        ArgumentNullException.ThrowIfNull(opt);
-
-        query = query.Trim();
-
-        // Using InvariantCulture since this is internal
-        var fullStringToCompareWithoutCase = opt.IgnoreCase ? stringToCompare.ToUpper(CultureInfo.InvariantCulture) : stringToCompare;
-        var queryWithoutCase = opt.IgnoreCase ? query.ToUpper(CultureInfo.InvariantCulture) : query;
-
-        var querySubstrings = queryWithoutCase.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+        // query, fullStringToCompareWithoutCase, and querySubstrings are pre-computed by the
+        // public overload; no repeated allocations per startIndex iteration.
         int currentQuerySubstringIndex = 0;
         var currentQuerySubstring = querySubstrings[currentQuerySubstringIndex];
         var currentQuerySubstringCharacterIndex = 0;
@@ -175,32 +176,35 @@ public class StringMatcher
         return new MatchResult(false, SearchPrecisionScore.Regular);
     }
 
-    // To get the index of the closest space which precedes the first matching index
+    // To get the index of the closest space which precedes the first matching index.
+    // SM-2: spaceIndices is populated in ascending index order; a reverse linear scan
+    // finds the answer in O(k) without the O(k log k) LINQ sort or IEnumerable allocations.
     private static int CalculateClosestSpaceIndex(List<int> spaceIndices, int firstMatchIndex)
     {
-        if (spaceIndices.Count == 0)
+        for (int i = spaceIndices.Count - 1; i >= 0; i--)
         {
-            return -1;
+            if (spaceIndices[i] < firstMatchIndex)
+            {
+                return spaceIndices[i];
+            }
         }
-        else
-        {
-            return spaceIndices.OrderBy(item => firstMatchIndex - item).Where(item => firstMatchIndex > item).FirstOrDefault(-1);
-        }
+
+        return -1;
     }
 
     private static bool AllPreviousCharsMatched(int startIndexToVerify, int currentQuerySubstringCharacterIndex, string fullStringToCompareWithoutCase, string currentQuerySubstring)
     {
-        var allMatch = true;
+        // SM-3: Return false immediately on the first mismatch instead of continuing the loop.
         for (int indexToCheck = 0; indexToCheck < currentQuerySubstringCharacterIndex; indexToCheck++)
         {
             if (fullStringToCompareWithoutCase[startIndexToVerify + indexToCheck] !=
                 currentQuerySubstring[indexToCheck])
             {
-                allMatch = false;
+                return false;
             }
         }
 
-        return allMatch;
+        return true;
     }
 
     private static List<int> GetUpdatedIndexList(int startIndexToVerify, int currentQuerySubstringCharacterIndex, int firstMatchIndexInWord, List<int> indexList)
@@ -247,7 +251,16 @@ public class StringMatcher
 
         if (allSubstringsContainedInCompareString)
         {
-            int count = query.Count(c => !char.IsWhiteSpace(c));
+            // SM-4: Indexed loop avoids the IEnumerable allocation from LINQ Count(predicate).
+            int count = 0;
+            for (int i = 0; i < query.Length; i++)
+            {
+                if (!char.IsWhiteSpace(query[i]))
+                {
+                    count++;
+                }
+            }
+
             int threshold = 4;
             if (count <= threshold)
             {
