@@ -1,7 +1,7 @@
 # Efficiency Improver Memory
 
 ## Last Updated
-2026-07-03 07:49 UTC (run 28646434076)
+2026-07-04 07:26 UTC (run 28699064677)
 
 ## Build/Test/Benchmark Commands
 - **Build**: `tools\build\build-essentials.cmd` (first time), `tools\build\build.cmd` (incremental)
@@ -14,6 +14,7 @@
 *(none)*
 
 ## Completed Work
+- 2026-07-04 (run 28699064677): Task 3 — PR #26 submitted (StringMatcher SM-1/SM-2/SM-3/SM-4); Task 5 — no new issues found; Task 7 — monthly summary updated
 - 2026-07-03 (run 28646434076): Task 2 — analyzed StringMatcher.cs (SM-1 through SM-4); Task 7 — monthly summary updated; Task 4 — no new PR activity
 - 2026-07-02 (run 28574372542): Task 4 — no new human activity on PRs; Task 2 — scanned tools/ via GitHub API (LOW findings only); Task 7 — monthly summary updated
 - 2026-07-01 (run 28504751794): Task 4 — verified all PRs, no new human activity; Task 7 — closed June #4, created July 2026 monthly #24
@@ -37,16 +38,12 @@
 *(none pending)*
 
 ### MEDIUM Priority
-- **Code-Level | StringMatcher SM-1**: O(L) repeated allocs in outer FuzzyMatch loop. In inner `FuzzyMatch` called L times: `query.Trim()`, `ToUpper()`, `Split()` all repeated. Move to outer method. Issue: #aw_sm_issue (pending creation, ~#25)
-- **Code-Level | StringMatcher SM-2**: `CalculateClosestSpaceIndex` uses LINQ `.OrderBy().Where().FirstOrDefault()` — O(k log k). `spaceIndices` is already sorted ascending; use reverse linear scan O(k), zero-alloc. Issue: same as SM-1.
 - **Code-Level | ImageResizer F-8**: `sizeNameSanitized` = `sizeName.Replace('\\','_').Replace('/','_')` — same for all files in a batch. Pre-computing saves 2 allocs per file. DEFERRED: implement AFTER PR #16 merges (conflict avoidance — both touch ResizeBatch.cs).
 - **Code-Level | ImageResizer F-6**: `GetEncoderPropertySet()` creates new `BitmapPropertySet` per JPEG; fixed per batch. Thread-safety of sharing needs investigation.
 - **Code-Level | Launcher EnvironmentHelper/ResultsViewModel**: `.ToList()` copies. Source NOT in sparse checkout.
 - **Code-Level | ColorPicker/AdvancedPaste UserSettings**: Thread.Sleep retry loops. Source NOT in sparse checkout.
 
 ### LOW Priority
-- **Code-Level | StringMatcher SM-3**: `AllPreviousCharsMatched` missing early exit — loop continues after mismatch. Add `return false;` on first mismatch.
-- **Code-Level | StringMatcher SM-4**: `query.Count(c => !char.IsWhiteSpace(c))` in `CalculateSearchScore` — LINQ alloc. Replace with indexed loop.
 - **Network & I/O | msstore-submissions.yml/package-submissions.yml**: 8 jq subprocess invocations; no wingetcreate caching. Protected-file paths.
 - **Code-Level | tools/mcp/github-artifacts/server.js**: `fetchAllComments()` uses `comments.concat(pageComments)` inside loop — O(n) copy per page. Dev tool, low frequency, negligible impact.
 - **Code-Level | tools/Test-AutoLabelProduct.ps1**: nested `Where-Object` label filter is O(n²) but with tiny n (max 100 issues × max ~10 labels). No action needed.
@@ -70,12 +67,12 @@ Next unexplored areas (via GitHub API):
 - src/modules/ high-value targets (FancyZones, Run/Launcher, etc.)
 
 ## Tasks Last Run
+- 2026-07-04 (run 28699064677): Task 3 (StringMatcher PR #26), Task 5 (no new issues), Task 7 (Monthly Summary)
 - 2026-07-03 (run 28646434076): Task 2 (StringMatcher scan), Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-07-02 (run 28574372542): Task 4 (PR check), Task 2 (tools/ scan), Task 7 (Monthly Summary)
 - 2026-07-01 (run 28504751794): Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-06-30 (run 28429830976): Task 4 (PR check), Task 7 (Monthly Summary)
 - 2026-06-29 (run 28361576460): Task 2 (scan remaining files), Task 4 (PR check), Task 7 (Monthly Summary)
-- 2026-06-28 (run 28315942087): Task 4 (PR review), Task 7 (Monthly Summary)
 
 ## Monthly Summary Issue
 - June 2026: issue #4 — CLOSED in run 28504751794
@@ -90,10 +87,11 @@ Next unexplored areas (via GitHub API):
 - #16: perf(imageresizer): reduce per-file allocations + fix FileNameFormat cache (open, CI failures infrastructure-only)
 - #17: perf(imageresizer): eliminate duplicate GetEncoderIdForDecoder call per file (draft)
 - #22: perf(release-scripts): replace O(n²) array append with generic List in PS1 scripts (draft, protected-files flag)
+- #26: perf(stringmatcher): hoist per-keystroke allocations out of inner FuzzyMatch loop (draft, SM-1/SM-2/SM-3/SM-4)
 
 ## Open Issues (blocked/awaiting maintainer action)
 - #8, #9, #10, #11: sparse-checkout fallback issues (same 3-line YAML change to telemetry-pr-check.yml) — needs manual apply
 - #12: perf(telemetry-pr-check) — older sparse-checkout issue, superseded by #11
 - #13: ImageResizer analysis — 7 findings; F-1/F-2/F-4/F-5 in #16; F-3 in #17; F-6/F-7 pending; F-8 analyzed
 - #19: BenchmarkDotNet proposal — awaiting feedback
-- StringMatcher analysis (SM-1 through SM-4) — newly created this run, pending issue number assignment
+- #25: StringMatcher analysis (SM-1 through SM-4) — implemented in PR #26
