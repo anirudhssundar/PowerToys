@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Microsoft.Plugin.Program.UnitTests")]
@@ -71,31 +70,20 @@ namespace Wox.Infrastructure
                 return new MatchResult(false, UserSettingSearchPrecision);
             }
 
-            var bestResult = new MatchResult(false, UserSettingSearchPrecision);
+            ArgumentNullException.ThrowIfNull(opt);
 
-            for (int startIndex = 0; startIndex < stringToCompare.Length; startIndex++)
-            {
-                MatchResult result = FuzzyMatch(query, stringToCompare, opt, startIndex);
-                if (result.Success && (!bestResult.Success || result.Score > bestResult.Score))
-                {
-                    bestResult = result;
-                }
-            }
-
-            return bestResult;
-        }
-
-        private MatchResult FuzzyMatch(string query, string stringToCompare, MatchOption opt, int startIndex)
-        {
-            if (string.IsNullOrEmpty(stringToCompare) || string.IsNullOrEmpty(query))
+            // WX-1: Pre-compute once here instead of per-startIndex in the inner overload,
+            // eliminating O(L) redundant Trim/Translate/ToUpper/Split allocations where
+            // L = stringToCompare.Length.
+            query = (query ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(query))
             {
                 return new MatchResult(false, UserSettingSearchPrecision);
             }
 
-            ArgumentNullException.ThrowIfNull(opt);
-
-            query = query.Trim();
-
+            // Save original bound BEFORE alphabet translation to preserve existing loop
+            // semantics when _alphabet.Translate changes the string length (e.g., CJK → pinyin).
+            int iterationBound = stringToCompare.Length;
             if (_alphabet != null)
             {
                 query = _alphabet.Translate(query);
@@ -105,8 +93,31 @@ namespace Wox.Infrastructure
             // Using InvariantCulture since this is internal
             var fullStringToCompareWithoutCase = opt.IgnoreCase ? stringToCompare.ToUpper(CultureInfo.InvariantCulture) : stringToCompare;
             var queryWithoutCase = opt.IgnoreCase ? query.ToUpper(CultureInfo.InvariantCulture) : query;
-
             var querySubstrings = queryWithoutCase.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+
+            var bestResult = new MatchResult(false, UserSettingSearchPrecision);
+
+            for (int startIndex = 0; startIndex < iterationBound; startIndex++)
+            {
+                MatchResult result = FuzzyMatch(query, stringToCompare, opt, startIndex, fullStringToCompareWithoutCase, querySubstrings);
+                if (result.Success && (!bestResult.Success || result.Score > bestResult.Score))
+                {
+                    bestResult = result;
+                }
+            }
+
+            return bestResult;
+        }
+
+        private MatchResult FuzzyMatch(string query, string stringToCompare, MatchOption opt, int startIndex, string fullStringToCompareWithoutCase, string[] querySubstrings)
+        {
+            // query, fullStringToCompareWithoutCase, and querySubstrings are pre-computed by the
+            // public overload; this overload focuses on matching from the given startIndex.
+
+            // Cache CompareInfo once per call to avoid repeated CultureInfo.CurrentCulture lookups
+            // in the hot character-comparison loop (WX-4).
+            CompareInfo compareInfo = CultureInfo.CurrentCulture.CompareInfo;
+
             int currentQuerySubstringIndex = 0;
             var currentQuerySubstring = querySubstrings[currentQuerySubstringIndex];
             var currentQuerySubstringCharacterIndex = 0;
@@ -133,10 +144,13 @@ namespace Wox.Infrastructure
                 bool compareResult;
                 if (opt.IgnoreCase)
                 {
-                    var fullStringToCompare = fullStringToCompareWithoutCase[compareStringIndex].ToString();
-                    var querySubstring = currentQuerySubstring[currentQuerySubstringCharacterIndex].ToString();
+                    // WX-4: Use CompareInfo.Compare with string + offset + length to avoid
+                    // allocating two single-char strings per character comparison.
 #pragma warning disable CA1309 // Use ordinal string comparison (We are looking for a fuzzy match here)
-                    compareResult = string.Compare(fullStringToCompare, querySubstring, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) != 0;
+                    compareResult = compareInfo.Compare(
+                        fullStringToCompareWithoutCase, compareStringIndex, 1,
+                        currentQuerySubstring, currentQuerySubstringCharacterIndex, 1,
+                        CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) != 0;
 #pragma warning restore CA1309 // Use ordinal string comparison
                 }
                 else
@@ -216,32 +230,35 @@ namespace Wox.Infrastructure
             return new MatchResult(false, UserSettingSearchPrecision);
         }
 
-        // To get the index of the closest space which precedes the first matching index
+        // To get the index of the closest space which precedes the first matching index.
+        // WX-2: spaceIndices is populated in ascending order; a reverse linear scan
+        // finds the answer in O(k) without the O(k log k) LINQ sort or IEnumerable allocations.
         private static int CalculateClosestSpaceIndex(List<int> spaceIndices, int firstMatchIndex)
         {
-            if (spaceIndices.Count == 0)
+            for (int i = spaceIndices.Count - 1; i >= 0; i--)
             {
-                return -1;
+                if (spaceIndices[i] < firstMatchIndex)
+                {
+                    return spaceIndices[i];
+                }
             }
-            else
-            {
-                return spaceIndices.OrderBy(item => (firstMatchIndex - item)).Where(item => firstMatchIndex > item).FirstOrDefault(-1);
-            }
+
+            return -1;
         }
 
         private static bool AllPreviousCharsMatched(int startIndexToVerify, int currentQuerySubstringCharacterIndex, string fullStringToCompareWithoutCase, string currentQuerySubstring)
         {
-            var allMatch = true;
+            // WX-3: Return false immediately on the first mismatch instead of continuing the loop.
             for (int indexToCheck = 0; indexToCheck < currentQuerySubstringCharacterIndex; indexToCheck++)
             {
                 if (fullStringToCompareWithoutCase[startIndexToVerify + indexToCheck] !=
                     currentQuerySubstring[indexToCheck])
                 {
-                    allMatch = false;
+                    return false;
                 }
             }
 
-            return allMatch;
+            return true;
         }
 
         private static List<int> GetUpdatedIndexList(int startIndexToVerify, int currentQuerySubstringCharacterIndex, int firstMatchIndexInWord, List<int> indexList)
@@ -289,7 +306,16 @@ namespace Wox.Infrastructure
 
             if (allSubstringsContainedInCompareString)
             {
-                int count = query.Count(c => !char.IsWhiteSpace(c));
+                // WX-5: Indexed loop avoids the IEnumerable allocation from LINQ Count(predicate).
+                int count = 0;
+                for (int i = 0; i < query.Length; i++)
+                {
+                    if (!char.IsWhiteSpace(query[i]))
+                    {
+                        count++;
+                    }
+                }
+
                 int threshold = 4;
                 if (count <= threshold)
                 {
